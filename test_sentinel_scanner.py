@@ -142,8 +142,11 @@ class TestSentinelComplianceAuditor(unittest.TestCase):
         self.assertGreater(doc.sections[0].page_width, doc.sections[0].page_height)
 
         wb = openpyxl.load_workbook(str(xlsx_p))
-        self.assertEqual(wb.sheetnames, ["Audit_Findings", "Pillar_Summary"])
-        ws = wb["Audit_Findings"]
+        self.assertEqual(
+            wb.sheetnames,
+            ["Findings_Matrix", "Pillar_Summary", "Remediation_Roadmap", "README"],
+        )
+        ws = wb["Findings_Matrix"]
         self.assertEqual(ws.freeze_panes, "A2")
         self.assertIsNotNone(ws.auto_filter.ref)
 

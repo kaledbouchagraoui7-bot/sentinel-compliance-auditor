@@ -1173,9 +1173,9 @@ def generate_excel_audit_workbook(audit: dict[str, Any], out_path: Path) -> None
     border = Border(left=thin, right=thin, top=thin, bottom=thin)
     wrap_top = Alignment(wrap_text=True, vertical="top", horizontal="left")
 
-    # Sheet 1: Audit_Findings
+    # Sheet 1: Findings_Matrix
     ws = wb.active
-    ws.title = "Audit_Findings"
+    ws.title = "Findings_Matrix"
     cols = ["ID", "Pillar", "Control", "Status", "Severity", "Weight", "Live_Evidence", "Business_Impact", "Remediation_Action", "Regulation_Standard"]
     ws.append(cols)
     ws.freeze_panes = "A2"
@@ -1214,6 +1214,35 @@ def generate_excel_audit_workbook(audit: dict[str, Any], out_path: Path) -> None
         ws2.append([p_name, p_info["score"], p_info["pass"], p_info["warn"], p_info["fail"], p_info["total"]])
     for col_let, w in zip(["A", "B", "C", "D", "E", "F"], [36, 14, 12, 12, 12, 16]):
         ws2.column_dimensions[col_let].width = w
+
+    # Sheet 3: Remediation_Roadmap (Priority-ordered FAIL & WARN controls)
+    ws3 = wb.create_sheet("Remediation_Roadmap")
+    ws3.append(["Priority_Rank", "ID", "Severity", "Status", "Control", "Actionable_Fix", "Target_Standard"])
+    ws3.freeze_panes = "A2"
+    for c_i in range(1, 8):
+        ws3.cell(row=1, column=c_i).font = hdr_font
+        ws3.cell(row=1, column=c_i).fill = hdr_fill
+    gaps = [f for f in audit["findings"] if f["status"] in ("FAIL", "WARN")]
+    sev_order = {"CRITICAL": 0, "HIGH": 1, "MEDIUM": 2, "LOW": 3}
+    gaps.sort(key=lambda x: (0 if x["status"] == "FAIL" else 1, sev_order.get(x["severity"], 4)))
+    for rank_idx, g in enumerate(gaps, start=1):
+        ws3.append([rank_idx, g["id"], g["severity"], g["status"], g["title"], g["remediation"], g["regulation"]])
+    for col_let, w in zip(["A", "B", "C", "D", "E", "F", "G"], [14, 10, 12, 10, 34, 52, 30]):
+        ws3.column_dimensions[col_let].width = w
+
+    # Sheet 4: README
+    ws4 = wb.create_sheet("README")
+    ws4.append(["Sheet_Name", "Description"])
+    ws4.cell(row=1, column=1).font = hdr_font
+    ws4.cell(row=1, column=1).fill = hdr_fill
+    ws4.cell(row=1, column=2).font = hdr_font
+    ws4.cell(row=1, column=2).fill = hdr_fill
+    ws4.append(["Findings_Matrix", "Complete 25-control passive audit table with AutoFilter and status highlighting."])
+    ws4.append(["Pillar_Summary", "Weighted percentage scores and PASS/WARN/FAIL breakdown across all 5 pillars."])
+    ws4.append(["Remediation_Roadmap", "Priority-ordered action list of failing and warning controls for IT/DevOps."])
+    ws4.append(["README", "Guide to sheets and methodology notes (100% passive OSINT inspection)."])
+    ws4.column_dimensions["A"].width = 24
+    ws4.column_dimensions["B"].width = 78
 
     wb.save(str(out_path))
 
