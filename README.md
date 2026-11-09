@@ -83,4 +83,4 @@ output/
 
 ## Legal & Ethical Notice
 
-Sentinel performs **strictly passive checks** equivalent to opening a public webpage in a standard web browser and querying public DNS TXT/MX/CAA records. It never performs port scanning, vulnerability exploitation, brute-forcing, or authenticated probing. All generated reports are intended to assist domain owners and compliance teams in hardening their public web and email infrastructure.
+Sentinel performs **strictly passive checks** equivalent to opening a public webpage in a standard web browser and querying public DNS TXT/MX/CAA records. It never performs port scanning, vulnerability exploitation, brute-forcing, or authenticated probing. See [`LEGAL_COMPLIANCE_AND_ETHICS.md`](LEGAL_COMPLIANCE_AND_ETHICS.md) for the complete Swiss (`StGB Art. 143bis`, `UWG Art. 3(1)(o)`, `nFADP`) and EU (`GDPR`, `EAA`) legal compliance framework.
