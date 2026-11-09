@@ -9,3 +9,4 @@ venv/
 Thumbs.db
 output/
 live_targets_output/
+live_targets_output_intl/
