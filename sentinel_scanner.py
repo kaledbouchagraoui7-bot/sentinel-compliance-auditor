@@ -916,7 +916,23 @@ def run_domain_audit(target: str) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 
 def generate_visual_scorecard(audit: dict[str, Any], png_path: Path, pdf_path: Path) -> None:
-    """Render an executive 300-DPI visual compliance & security scorecard for Cold Email #1."""
+    """Render an executive Swiss-editorial 1-page posture briefing (.png & .pdf)."""
+    try:
+        from editorial_renderer import build_client_brief_html, render_html_to_pdf_and_png
+
+        html_doc = build_client_brief_html(audit)
+        if render_html_to_pdf_and_png(
+            html_doc,
+            png_path=png_path,
+            pdf_path=pdf_path,
+            width_px=1140,
+            height_px=780,
+        ):
+            return
+    except Exception:
+        pass
+
+    # Fallback renderer only when headless browser is unavailable
     fig, ax = plt.subplots(figsize=(11.0, 7.2), dpi=300)
     fig.patch.set_facecolor("#FFFFFF")
     ax.set_facecolor("#FFFFFF")

@@ -1,3 +1,7 @@
+<div align="center">
+  <img src="assets/sentinel_logo_full.png" alt="Sentinel — Passive Domain Compliance & Security Auditor" width="760" />
+</div>
+
 # Sentinel — Passive Domain Compliance & Security Auditor
 
 **Automated Pre-Audit Engine for Swiss nFADP (LPD/revDSG), EU GDPR, Email Anti-Spoofing (DMARC/SPF), HTTP Edge Hardening, and European Accessibility Act (EAA / WCAG 2.1 AA).**
