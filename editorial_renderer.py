@@ -21,6 +21,36 @@ from typing import Any
 
 _EDGE_RENDER_LOCK = threading.Lock()
 
+_SENTINEL_HEADER_SVG = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="20 25 360 360" width="46" height="46" role="img" aria-label="Sentinel mark">
+<defs>
+  <radialGradient id="sHdrOrb" cx=".35" cy=".28" r=".95">
+    <stop offset="0" stop-color="#d9fbff"/><stop offset=".38" stop-color="#3fc4f2"/><stop offset=".78" stop-color="#0b7fd0"/><stop offset="1" stop-color="#0a4f9e"/>
+  </radialGradient>
+  <linearGradient id="sHdrRim" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0" stop-color="#fff"/><stop offset=".5" stop-color="#9deaff" stop-opacity=".6"/><stop offset="1" stop-color="#0f766e"/>
+  </linearGradient>
+  <linearGradient id="sHdrCross" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#fff"/><stop offset=".55" stop-color="#c4eeff"/><stop offset="1" stop-color="#74c9f0"/>
+  </linearGradient>
+  <radialGradient id="sHdrLime" cx=".38" cy=".3" r=".8">
+    <stop offset="0" stop-color="#f9ffc2"/><stop offset=".45" stop-color="#a6e82c"/><stop offset="1" stop-color="#2f9a1c"/>
+  </radialGradient>
+  <linearGradient id="sHdrGloss" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#fff" stop-opacity=".9"/><stop offset="1" stop-color="#fff" stop-opacity=".05"/>
+  </linearGradient>
+</defs>
+<circle cx="200" cy="205" r="148" fill="url(#sHdrOrb)"/>
+<circle cx="200" cy="205" r="148" fill="none" stroke="url(#sHdrRim)" stroke-width="6"/>
+<rect x="125" y="181" width="150" height="48" rx="18" fill="url(#sHdrCross)" stroke="#fff" stroke-width="3"/>
+<rect x="176" y="130" width="48" height="150" rx="18" fill="url(#sHdrCross)" stroke="#fff" stroke-width="3"/>
+<rect x="176" y="183" width="48" height="44" fill="url(#sHdrCross)"/>
+<circle cx="200" cy="205" r="28" fill="url(#sHdrLime)" stroke="#fff" stroke-width="3.5"/>
+<path d="M62 188 C 70 100, 140 62, 200 62 C 260 62, 330 100, 338 188 C 290 146, 110 146, 62 188Z" fill="url(#sHdrGloss)"/>
+<g fill="none" stroke="#0f172a" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" opacity="0.28">
+  <path d="M40 85 V45 H80"/><path d="M320 45 H360 V85"/><path d="M360 325 V365 H320"/><path d="M80 365 H40 V325"/>
+</g>
+</svg>"""
+
 
 def find_headless_browser() -> str | None:
     """Locate Microsoft Edge or Google Chrome executable on Windows/macOS/Linux."""
@@ -219,6 +249,15 @@ def build_client_brief_html(audit: dict[str, Any]) -> str:
     justify-content: space-between;
     align-items: flex-end;
   }}
+  .header-brand {{
+    display: flex;
+    align-items: center;
+    gap: 13px;
+  }}
+  .brand-mark {{
+    flex: 0 0 auto;
+    line-height: 0;
+  }}
   .eyebrow {{
     font-size: 10px;
     letter-spacing: 1.6px;
@@ -401,9 +440,12 @@ def build_client_brief_html(audit: dict[str, Any]) -> str:
 <body>
   <div>
     <div class="header">
-      <div>
-        <div class="eyebrow">External Technical, Email &amp; Privacy Briefing</div>
-        <h1>{domain}</h1>
+      <div class="header-brand">
+        <div class="brand-mark">{_SENTINEL_HEADER_SVG}</div>
+        <div>
+          <div class="eyebrow">Sentinel &middot; External Technical, Email &amp; Privacy Briefing</div>
+          <h1>{domain}</h1>
+        </div>
       </div>
       <div class="header-right">
         <div><strong>Target:</strong> {final_url}</div>
