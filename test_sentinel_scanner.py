@@ -18,6 +18,8 @@ from docx import Document
 
 from editorial_renderer import build_client_brief_html
 from sentinel_scanner import (
+    count_spf_dns_lookups,
+    detect_cmp_and_reject_symmetry,
     generate_excel_audit_workbook,
     generate_visual_scorecard,
     generate_word_audit_report,
@@ -167,6 +169,47 @@ class TestSentinelComplianceAuditor(unittest.TestCase):
             "Vulnerability Disclosure Policy (/.well-known/security.txt)",
             build_client_brief_html(long_title_audit),
         )
+
+    def test_spf_recursive_lookup_counter_and_cmp_detector(self) -> None:
+        mock_dns = {
+            "spf.vendor-a.example": ["v=spf1 include:spf.sub1.example include:spf.sub2.example a mx -all"],
+            "spf.sub1.example": ["v=spf1 a mx ptr exists:%{i}.check.example -all"],
+            "spf.sub2.example": ["v=spf1 include:spf.sub3.example mx -all"],
+            "spf.sub3.example": ["v=spf1 a mx -all"],
+            "loop-a.example": ["v=spf1 include:loop-b.example -all"],
+            "loop-b.example": ["v=spf1 include:loop-a.example -all"],
+        }
+        res_ok = count_spf_dns_lookups("v=spf1 ip4:192.0.2.0/24 mx a ~all")
+        self.assertEqual(res_ok["total_lookups"], 2)
+        self.assertFalse(res_ok["exceeds_limit"])
+        self.assertFalse(res_ok["near_limit"])
+
+        res_over = count_spf_dns_lookups(
+            "v=spf1 include:spf.vendor-a.example a mx -all",
+            fetch_txt_fn=lambda d: mock_dns.get(d, []),
+        )
+        self.assertGreater(res_over["total_lookups"], 10)
+        self.assertTrue(res_over["exceeds_limit"])
+        self.assertFalse(res_over["near_limit"])
+
+        res_near = count_spf_dns_lookups("v=spf1 a mx a mx a mx a mx a -all")
+        self.assertEqual(res_near["total_lookups"], 9)
+        self.assertTrue(res_near["near_limit"])
+        self.assertFalse(res_near["exceeds_limit"])
+
+        res_loop = count_spf_dns_lookups(
+            "v=spf1 include:loop-a.example -all",
+            fetch_txt_fn=lambda d: mock_dns.get(d, []),
+        )
+        self.assertTrue(res_loop["loop_detected"])
+
+        cmp_res = detect_cmp_and_reject_symmetry(
+            '<html><script src="https://cdn.didomi.io/sdk.js"></script>'
+            '<button>Tout accepter</button><button>Tout refuser</button></html>'
+        )
+        self.assertIn("Didomi", cmp_res["detected_cmps"])
+        self.assertTrue(cmp_res["has_accept_copy_in_html"])
+        self.assertTrue(cmp_res["has_reject_copy_in_html"])
 
 
 if __name__ == "__main__":

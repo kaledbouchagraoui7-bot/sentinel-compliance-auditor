@@ -148,6 +148,120 @@ def query_doh_txt(name: str, record_type: str = "TXT") -> list[str]:
     return []
 
 
+_SPF_PREFIX_RE = re.compile(r"^[+\-~?]")
+
+
+def count_spf_dns_lookups(
+    spf_record: str,
+    fetch_txt_fn: Any = None,
+    _depth: int = 0,
+    _visited: set[str] | None = None,
+) -> dict[str, Any]:
+    """
+    Count RFC 7208 §4.6.4 DNS-querying SPF mechanisms (`include`, `a`, `mx`, `ptr`,
+    `exists`, `redirect`), optionally traversing nested `include:`/`redirect=` targets
+    when `fetch_txt_fn(domain) -> list[str]` is provided. Limit is strictly 10 lookups
+    before mail servers fail evaluation with PermError.
+    """
+    visited = set(_visited) if _visited is not None else set()
+    tokens = [t.strip() for t in (spf_record or "").split() if t.strip()]
+    direct_lookups = 0
+    total_lookups = 0
+    included_domains: list[str] = []
+    loop_detected = False
+
+    for raw_tok in tokens:
+        tok = _SPF_PREFIX_RE.sub("", raw_tok).lower()
+        if not tok or tok.startswith(("v=spf1", "ip4:", "ip6:", "exp=")) or tok == "all":
+            continue
+
+        mech_name = tok.split(":", 1)[0].split("/", 1)[0]
+        if tok.startswith("redirect="):
+            target = tok.split("=", 1)[1].strip(".")
+            direct_lookups += 1
+            total_lookups += 1
+            if target:
+                included_domains.append(target)
+                if fetch_txt_fn is not None and _depth < 6:
+                    if target in visited:
+                        loop_detected = True
+                    else:
+                        visited.add(target)
+                        try:
+                            nested_txts = fetch_txt_fn(target) or []
+                            nested_spf = next((x for x in nested_txts if "v=spf1" in str(x).lower()), "")
+                            if nested_spf:
+                                sub = count_spf_dns_lookups(
+                                    nested_spf, fetch_txt_fn=fetch_txt_fn, _depth=_depth + 1, _visited=visited
+                                )
+                                total_lookups += int(sub["total_lookups"])
+                                included_domains.extend(sub["included_domains"])
+                                loop_detected = loop_detected or bool(sub["loop_detected"])
+                        except Exception:
+                            pass
+            continue
+
+        if mech_name in ("include", "exists"):
+            direct_lookups += 1
+            total_lookups += 1
+            target = tok.split(":", 1)[1].strip(".") if ":" in tok else ""
+            if mech_name == "include" and target:
+                included_domains.append(target)
+                if fetch_txt_fn is not None and _depth < 6:
+                    if target in visited:
+                        loop_detected = True
+                    else:
+                        visited.add(target)
+                        try:
+                            nested_txts = fetch_txt_fn(target) or []
+                            nested_spf = next((x for x in nested_txts if "v=spf1" in str(x).lower()), "")
+                            if nested_spf:
+                                sub = count_spf_dns_lookups(
+                                    nested_spf, fetch_txt_fn=fetch_txt_fn, _depth=_depth + 1, _visited=visited
+                                )
+                                total_lookups += int(sub["total_lookups"])
+                                included_domains.extend(sub["included_domains"])
+                                loop_detected = loop_detected or bool(sub["loop_detected"])
+                        except Exception:
+                            pass
+        elif mech_name in ("a", "mx", "ptr"):
+            direct_lookups += 1
+            total_lookups += 1
+
+    return {
+        "direct_lookups": direct_lookups,
+        "total_lookups": total_lookups,
+        "included_domains": list(dict.fromkeys(included_domains)),
+        "exceeds_limit": total_lookups > 10,
+        "near_limit": 9 <= total_lookups <= 10,
+        "loop_detected": loop_detected,
+    }
+
+
+def detect_cmp_and_reject_symmetry(html_lower: str) -> dict[str, Any]:
+    """Passively inspect raw initial HTML for known CMP scripts and Reject/Refuse symmetry hints."""
+    known_cmps = {
+        "cookiebot": "Cookiebot",
+        "onetrust": "OneTrust",
+        "usercentrics": "Usercentrics",
+        "axeptio": "Axeptio",
+        "didomi": "Didomi",
+        "tarteaucitron": "tarteaucitron.js",
+        "complianz": "Complianz",
+        "cookieyes": "CookieYes",
+        "iubenda": "iubenda",
+        "borlabs": "Borlabs Cookie",
+    }
+    found = [label for key, label in known_cmps.items() if key in html_lower]
+    has_accept = bool(re.search(r"\b(?:accept all|tout accepter|accepter|alle akzeptieren|agree)\b", html_lower))
+    has_reject = bool(re.search(r"\b(?:reject all|tout refuser|refuser|decline|alle ablehnen|only essential|necessary only)\b", html_lower))
+    return {
+        "detected_cmps": found,
+        "has_accept_copy_in_html": has_accept,
+        "has_reject_copy_in_html": has_reject,
+    }
+
+
 def resolve_network_utc_now(headers_lower: dict[str, str] | None = None) -> dt.datetime:
     """Use HTTP Date header when available so timestamps and TLS expiry match network UTC."""
     if headers_lower and "date" in headers_lower:
@@ -296,9 +410,12 @@ def run_domain_audit(target: str) -> dict[str, Any]:
                 "RFC 7489",
             )
 
-    # 1.2 SPF Record Syntax & All-Mechanism
+    # 1.2 SPF Record Syntax, All-Mechanism & RFC 7208 10-DNS-Lookup Budget
     root_txts = query_doh_txt(domain, "TXT")
     spf_rec = next((t for t in root_txts if "v=spf1" in t.lower()), "")
+    spf_stats = count_spf_dns_lookups(spf_rec, fetch_txt_fn=lambda d: query_doh_txt(d, "TXT")) if spf_rec else {
+        "direct_lookups": 0, "total_lookups": 0, "included_domains": [], "exceeds_limit": False, "near_limit": False, "loop_detected": False
+    }
     if not spf_rec:
         add_finding(
             "EML-02", P1, "SPF (Sender Policy Framework) Record", "FAIL", "HIGH", 8,
@@ -315,24 +432,49 @@ def run_domain_audit(target: str) -> dict[str, Any]:
             "Replace ?all or +all with ~all (SoftFail) or -all (HardFail).",
             "RFC 7208",
         )
+    elif spf_stats["exceeds_limit"]:
+        add_finding(
+            "EML-02", P1, "SPF Record Lookup Limit Exceeded (RFC 7208 PermError)", "FAIL", "HIGH", 8,
+            f"SPF triggers {spf_stats['total_lookups']} DNS lookups (limit is 10 per RFC 7208 §4.6.4): {spf_rec[:75]}",
+            "Exceeding 10 nested DNS lookups causes SPF PermError at Microsoft/Google receivers, triggering silent junking or bouncebacks.",
+            "Flatten nested SPF include: chains or replace unused sender includes so total lookups remain <= 8.",
+            "RFC 7208 §4.6.4 / Deliverability",
+        )
+    elif spf_stats["near_limit"]:
+        add_finding(
+            "EML-02", P1, "SPF (Sender Policy Framework) Lookup Budget Warning", "WARN", "MEDIUM", 8,
+            f"Valid SPF qualifier, but resolves {spf_stats['total_lookups']}/10 DNS lookups ({len(spf_stats['included_domains'])} includes): {spf_rec[:72]}",
+            "At 9-10 lookups, adding one more CRM or ESP include pushes SPF over the hard RFC 7208 limit of 10 (PermError).",
+            "Audit and flatten legacy SPF include: mechanisms before onboarding new mail senders.",
+            "RFC 7208 §4.6.4",
+        )
     else:
         add_finding(
             "EML-02", P1, "SPF (Sender Policy Framework) Record", "PASS", "HIGH", 8,
-            f"Valid SPF policy verified: {spf_rec[:95]}",
-            "Authorized outbound mail servers are properly declared.",
+            f"Valid SPF policy verified ({spf_stats['total_lookups']}/10 DNS lookups): {spf_rec[:80]}",
+            "Authorized outbound mail servers are properly declared within RFC 7208 lookup limits.",
             "Keep SPF DNS lookups <= 10.",
             "RFC 7208",
         )
 
-    # 1.3 MX Records
+    # 1.3 MX Records & MTA-STS / TLS-RPT Transport Hardening
     mx_recs = query_doh_txt(domain, "MX")
+    mta_sts_recs = query_doh_txt(f"_mta-sts.{domain}", "TXT")
+    tls_rpt_recs = query_doh_txt(f"_smtp._tls.{domain}", "TXT")
+    has_mta_sts = any("v=stsv1" in r.lower() for r in mta_sts_recs)
+    has_tls_rpt = any("v=tlsrptv1" in r.lower() for r in tls_rpt_recs)
+    email_transport_hardening = {
+        "mx_count": len(mx_recs),
+        "mta_sts": has_mta_sts,
+        "tls_rpt": has_tls_rpt,
+    }
     if mx_recs:
         add_finding(
             "EML-03", P1, "Mail Exchange (MX) Configuration", "PASS", "LOW", 3,
-            f"{len(mx_recs)} MX record(s) configured ({mx_recs[0][:60]}).",
+            f"{len(mx_recs)} MX record(s) ({mx_recs[0][:48]}) | MTA-STS: {'Yes' if has_mta_sts else 'No'} | TLS-RPT: {'Yes' if has_tls_rpt else 'No'}.",
             "Inbound mail routing is active.",
-            "None required.",
-            "RFC 5321",
+            "None required." if (has_mta_sts and has_tls_rpt) else f"Optional hardening: publish _mta-sts.{domain} (RFC 8461) & _smtp._tls.{domain} (RFC 8460).",
+            "RFC 5321 / RFC 8461",
         )
     else:
         add_finding(
@@ -392,18 +534,20 @@ def run_domain_audit(target: str) -> dict[str, Any]:
         )
 
     other_trackers = [t for t in detected_trackers if not t.startswith("fonts.g")]
+    cmp_diag = detect_cmp_and_reject_symmetry(html_lower)
+    cmp_note = f" (CMP detected: {', '.join(cmp_diag['detected_cmps'][:2])})" if cmp_diag["detected_cmps"] else ""
     if other_trackers:
         add_finding(
             "PRV-02", P2, "Third-Party Analytics / Marketing Scripts in Initial HTML", "WARN", "MEDIUM", 7,
-            f"Detected {len(other_trackers)} external tracker reference(s): {'; '.join(other_trackers[:3])}",
-            "If executed prior to affirmative opt-in, third-party trackers violate EU ePrivacy / GDPR and nFADP transparency rules.",
-            "Ensure all analytics/marketing tags are strictly blocked by a Consent Management Platform (CMP) until explicit opt-in.",
-            "EU GDPR Art. 6 / ePrivacy Directive / Swiss nFADP",
+            f"Detected {len(other_trackers)} external tracker reference(s): {'; '.join(other_trackers[:3])}{cmp_note}",
+            "If executed prior to affirmative opt-in, third-party trackers violate EU ePrivacy / GDPR (CNIL equal Accept/Reject symmetry) and nFADP rules.",
+            "Ensure all analytics/marketing tags wait for explicit consent and offer an equal one-click 'Reject All' option.",
+            "EU GDPR Art. 6 / CNIL / ePrivacy Directive / Swiss nFADP",
         )
     else:
         add_finding(
             "PRV-02", P2, "Clean Initial HTML (Minimal Pre-Consent Trackers)", "PASS", "MEDIUM", 7,
-            "Zero third-party advertising or behavioral tracker domains detected in raw initial HTML.",
+            f"Zero third-party advertising or behavioral tracker domains detected in raw initial HTML{cmp_note}.",
             "Reduces cross-border data transfer exposure.",
             "None required.",
             "Swiss nFADP / EU GDPR",
@@ -908,6 +1052,9 @@ def run_domain_audit(target: str) -> dict[str, Any]:
         "total_checks": len(findings),
         "pillar_scores": pillar_scores,
         "findings": findings,
+        "spf_diagnostics": spf_stats,
+        "email_transport_hardening": email_transport_hardening,
+        "cmp_diagnostics": cmp_diag,
     }
 
 
@@ -1349,9 +1496,12 @@ add_header Permissions-Policy "camera=(), microphone=(), geolocation=(), payment
 """
     (cfg_dir / "nginx_security_headers.conf").write_text(nginx_txt, encoding="utf-8")
 
-    dns_txt = f"""# Recommended DNS Anti-Spoofing & CAA Records for {dom}
-_dmarc.{dom}.   3600 IN TXT "v=DMARC1; p=quarantine; rua=mailto:postmaster@{dom}; adkim=r; aspf=r;"
-{dom}.          3600 IN CAA 0 issue "letsencrypt.org"
+    dns_txt = f"""# Recommended DNS Anti-Spoofing, Mail Transport & CAA Records for {dom}
+_dmarc.{dom}.     3600 IN TXT "v=DMARC1; p=quarantine; rua=mailto:postmaster@{dom}; adkim=r; aspf=r;"
+{dom}.            3600 IN CAA 0 issue "letsencrypt.org"
+# Optional RFC 8461 MTA-STS & RFC 8460 TLS-RPT hardening (once https://mta-sts.{dom}/.well-known/mta-sts.txt is hosted):
+_mta-sts.{dom}.   3600 IN TXT "v=STSv1; id=20261111T000000;"
+_smtp._tls.{dom}. 3600 IN TXT "v=TLSRPTv1; rua=mailto:tlsrpt@{dom};"
 """
     (cfg_dir / "dns_remediation_records.txt").write_text(dns_txt, encoding="utf-8")
 
