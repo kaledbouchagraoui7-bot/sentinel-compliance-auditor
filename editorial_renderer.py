@@ -11,6 +11,7 @@ clean Matplotlib fallback only if a headless Chromium browser is unavailable.
 from __future__ import annotations
 
 import html
+import os
 import shutil
 import subprocess
 import tempfile
@@ -205,9 +206,9 @@ def build_client_brief_html(audit: dict[str, Any]) -> str:
         pill_cls = "pill-priority" if is_fail else "pill-advisory"
         pill_txt = "ACTION NEEDED" if is_fail else "REVIEW"
         cid = html.escape(str(g.get("id", "")))
-        title = html.escape(_humanize_finding_note(str(g.get("title", "")), 64))
-        evidence = html.escape(_humanize_finding_note(str(g.get("evidence", "")), 84))
-        impact = html.escape(_humanize_finding_note(str(g.get("impact", "")), 92))
+        title = html.escape(_humanize_finding_note(str(g.get("title", "")), 78))
+        evidence = html.escape(_humanize_finding_note(str(g.get("evidence", "")), 150))
+        impact = html.escape(_humanize_finding_note(str(g.get("impact", "")), 165))
         gaps_rows.append(
             f"""
             <tr>
@@ -234,7 +235,7 @@ def build_client_brief_html(audit: dict[str, Any]) -> str:
     margin: 0;
     width: 1140px;
     height: 780px;
-    padding: 36px 44px 28px 44px;
+    padding: 30px 44px 22px 44px;
     background: #FFFFFF;
     color: #111827;
     font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif;
@@ -286,13 +287,13 @@ def build_client_brief_html(audit: dict[str, Any]) -> str:
     display: grid;
     grid-template-columns: 310px 1fr;
     gap: 28px;
-    margin-top: 16px;
+    margin-top: 12px;
   }}
   .summary-box {{
     background: #F8FAFC;
     border: 1px solid #E2E8F0;
     border-top: 3px solid {posture_tone};
-    padding: 18px 20px;
+    padding: 15px 18px;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
@@ -358,7 +359,7 @@ def build_client_brief_html(audit: dict[str, Any]) -> str:
     font-weight: 700;
     margin-bottom: 10px;
   }}
-  .pillar-row {{ margin-bottom: 9px; }}
+  .pillar-row {{ margin-bottom: 7px; }}
   .pillar-meta {{
     display: flex;
     justify-content: space-between;
@@ -375,11 +376,11 @@ def build_client_brief_html(audit: dict[str, Any]) -> str:
   }}
   .fill {{ height: 100%; }}
 
-  .findings-section {{ margin-top: 14px; }}
+  .findings-section {{ margin-top: 10px; }}
   table {{
     width: 100%;
     border-collapse: collapse;
-    font-size: 11px;
+    font-size: 10.5px;
   }}
   th {{
     text-align: left;
@@ -388,24 +389,24 @@ def build_client_brief_html(audit: dict[str, Any]) -> str:
     text-transform: uppercase;
     color: #64748B;
     border-bottom: 1.5px solid #0F172A;
-    padding: 5px 8px 6px 0;
+    padding: 4px 8px 5px 0;
   }}
   td {{
     border-bottom: 1px solid #E5E7EB;
-    padding: 7px 10px 7px 0;
+    padding: 5.5px 10px 5.5px 0;
     vertical-align: top;
-    line-height: 1.38;
+    line-height: 1.32;
   }}
-  .col-id {{ width: 128px; }}
-  .col-title {{ width: 410px; }}
-  .col-impact {{ color: #374151; }}
+  .col-id {{ width: 124px; }}
+  .col-title {{ width: 432px; }}
+  .col-impact {{ color: #374151; font-size: 10.3px; }}
   .code-id {{
     font-family: Consolas, 'Courier New', monospace;
     font-size: 10px;
     color: #64748B;
     margin-top: 3px;
   }}
-  .ev {{ color: #4B5563; font-size: 10.5px; margin-top: 2px; }}
+  .ev {{ color: #4B5563; font-size: 10px; margin-top: 2px; line-height: 1.3; }}
   .pill-priority {{
     display: inline-block;
     padding: 2px 6px;
@@ -500,6 +501,225 @@ def build_client_brief_html(audit: dict[str, Any]) -> str:
 
   <div class="footer">
     <span>Kaled Bouchagraoui &middot; Passive Public Observation Only &middot; Technical QA Aid (Not Legal Advice; Liability Capped at Fees Paid)</span>
+    <span>Samples &amp; Terms: kaledbouchagraoui7-bot.github.io/medtech-regulatory-compliance-suite</span>
+  </div>
+</body>
+</html>"""
+
+
+def build_ra_command_center_html(report: dict[str, Any]) -> str:
+    """Swiss Editorial Dashboard for RA Operations Command Center (HTML5 -> Edge PDF/PNG)."""
+    def _plural(n: Any, singular: str, plural: str) -> str:
+        val = int(n or 0)
+        return f"{val} {singular if val == 1 else plural}"
+
+    sub_id = html.escape(str(report.get("submission_id", "")))
+    prod = html.escape(str(report.get("product_name", "")))
+    verdict = html.escape(str(report.get("gate_decision", "")))
+    readiness = int(report.get("overall_readiness_score", 0))
+    crl_risk = int(report.get("crl_probability_pct", 0))
+    up_days = int(report.get("total_upstream_overdue_days", 0))
+    ra_days = int(report.get("ra_overdue_days", 0))
+    up_cost = int(report.get("upstream_delay_cost_usd", 0))
+    crl_cost = int(report.get("premature_filing_crl_cost_usd", 0))
+    hrs_saved = float(report.get("manual_hours_saved", 0.0))
+    blockers = int(report.get("rtf_blockers_count", 0))
+
+    accent = "#991B1B" if blockers > 0 else "#0F766E"
+
+    sla_rows = []
+    for d in report.get("dept_delay_summary", []):
+        od = int(d.get("overdue_days", 0))
+        comp = int(d.get("completeness_pct", 0))
+        bar_c = "#991B1B" if od > 7 else ("#B45309" if od > 0 else "#0F766E")
+        dept_esc = html.escape(str(d.get("department", "")))
+        status_esc = html.escape(str(d.get("status", "")))
+        sla_rows.append(
+            f"""
+            <tr>
+              <td><strong>{dept_esc}</strong><div class="sub">{html.escape(str(d.get('package_id', '')))} &middot; {html.escape(str(d.get('module_ref', '')))}</div></td>
+              <td><span class="tag" style="color:{bar_c};border-color:{bar_c};">{status_esc}</span></td>
+              <td style="text-align:right;font-weight:700;color:{bar_c};">{od}d ({d.get('delay_share_pct', 0)}%)</td>
+              <td style="text-align:right;font-weight:600;">{comp}%</td>
+            </tr>
+            """
+        )
+
+    xc = report.get("xchk_counts", {})
+    dc = report.get("drift_counts", {})
+
+    return f"""<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<style>
+  @page {{ size: 11.4in 7.8in; margin: 0; }}
+  * {{ box-sizing: border-box; }}
+  body {{
+    margin: 0;
+    width: 1140px;
+    height: 780px;
+    padding: 32px 42px 26px 42px;
+    background: #FFFFFF;
+    color: #111827;
+    font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }}
+  .header {{
+    border-bottom: 2px solid #0F172A;
+    padding-bottom: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+  }}
+  .header-brand {{
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }}
+  .brand-mark {{
+    flex: 0 0 auto;
+    line-height: 0;
+  }}
+  .eyebrow {{ font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: #0F766E; font-weight: 700; }}
+  h1 {{ margin: 3px 0 0 0; font-family: Georgia, serif; font-size: 19px; line-height: 1.25; color: #0F172A; }}
+  .verdict-strip {{
+    margin-top: 12px;
+    padding: 10px 14px;
+    background: #F8FAFC;
+    border-left: 4px solid {accent};
+    border-top: 1px solid #E2E8F0;
+    border-right: 1px solid #E2E8F0;
+    border-bottom: 1px solid #E2E8F0;
+    display: flex;
+    justify-content: space-between;
+    font-size: 11.5px;
+  }}
+  .kpi-grid {{
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+    margin-top: 14px;
+  }}
+  .kpi {{
+    background: #FFFFFF;
+    border: 1px solid #E2E8F0;
+    padding: 12px 14px;
+  }}
+  .kpi-lbl {{ font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.9px; color: #64748B; font-weight: 700; }}
+  .kpi-val {{ font-family: Georgia, serif; font-size: 24px; font-weight: 700; color: #0F172A; margin: 4px 0; }}
+  .kpi-note {{ font-size: 10px; color: #4B5563; }}
+
+  .main-grid {{
+    display: grid;
+    grid-template-columns: 1.45fr 1fr;
+    gap: 24px;
+    margin-top: 16px;
+  }}
+  .sec-title {{ font-size: 10.5px; text-transform: uppercase; letter-spacing: 1.1px; color: #475569; font-weight: 700; margin-bottom: 8px; }}
+  table {{ width: 100%; border-collapse: collapse; font-size: 10.5px; }}
+  th {{ text-align: left; font-size: 9px; text-transform: uppercase; color: #64748B; border-bottom: 1.5px solid #0F172A; padding: 5px 4px; }}
+  td {{ border-bottom: 1px solid #E5E7EB; padding: 7px 4px; vertical-align: middle; }}
+  .sub {{ font-size: 9.5px; color: #64748B; margin-top: 1px; }}
+  .tag {{ font-size: 9px; font-weight: 700; padding: 2px 6px; border: 1px solid; background: #FFF; }}
+
+  .right-col {{ display: flex; flex-direction: column; gap: 12px; }}
+  .stat-card {{
+    background: #F8FAFC;
+    border: 1px solid #E2E8F0;
+    padding: 12px 14px;
+  }}
+  .stat-line {{
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    padding: 4px 0;
+    border-bottom: 1px solid #E2E8F0;
+  }}
+  .stat-line:last-child {{ border-bottom: none; }}
+  .footer {{
+    border-top: 1px solid #E5E7EB;
+    padding-top: 8px;
+    display: flex;
+    justify-content: space-between;
+    font-size: 9.5px;
+    color: #6B7280;
+  }}
+</style>
+</head>
+<body>
+  <div>
+    <div class="header">
+      <div class="header-brand">
+        <div class="brand-mark">{_SENTINEL_HEADER_SVG}</div>
+        <div>
+          <div class="eyebrow">Sentinel RA &middot; Regulatory Affairs Operations &amp; Submission Telemetry</div>
+          <h1>{sub_id} &mdash; {html.escape(_humanize_finding_note(str(report.get('product_name', '')), 96))}</h1>
+        </div>
+      </div>
+      <div style="text-align:right;font-size:10.5px;color:#4B5563;white-space:nowrap;">
+        <div><strong>Vertical:</strong> {html.escape(str(report.get('vertical', 'medtech_ra')))}</div>
+        <div><strong>Evaluation Date:</strong> {html.escape(str(report.get('evaluation_date', '')))}</div>
+      </div>
+    </div>
+
+    <div class="verdict-strip">
+      <span><strong style="color:{accent};">GATEKEEPER VERDICT:</strong> {verdict}</span>
+      <span><strong>RTF / CRL Risk:</strong> {crl_risk}% ({blockers} active blockers)</span>
+    </div>
+
+    <div class="kpi-grid">
+      <div class="kpi">
+        <div class="kpi-lbl">Dossier Readiness</div>
+        <div class="kpi-val">{readiness}/100</div>
+        <div class="kpi-note">Combined SLA + Cross-Check + Guidance</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-lbl">RA vs. Upstream Delay</div>
+        <div class="kpi-val" style="color:#0F766E;">{ra_days}d <span style="font-size:15px;color:#64748B;">/ {up_days}d</span></div>
+        <div class="kpi-note">RA Core Team 100% On-SLA ({up_days}d upstream)</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-lbl">CRL Cost Shielded</div>
+        <div class="kpi-val">${crl_cost:,.0f}</div>
+        <div class="kpi-note">${up_cost:,.0f} upstream burn already logged</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-lbl">Manual QA Hours Saved</div>
+        <div class="kpi-val">{hrs_saved} hrs</div>
+        <div class="kpi-note">Automated cross-checks &amp; chaser briefs</div>
+      </div>
+    </div>
+
+    <div class="main-grid">
+      <div>
+        <div class="sec-title">1. Departmental SLA &amp; Critical-Path Delay Attribution</div>
+        <table>
+          <thead><tr><th>Department / Package</th><th>Status</th><th style="text-align:right;">Delay Share</th><th style="text-align:right;">Completeness</th></tr></thead>
+          <tbody>{''.join(sla_rows)}</tbody>
+        </table>
+      </div>
+      <div class="right-col">
+        <div class="stat-card">
+          <div class="sec-title" style="margin-bottom:6px;">2. eCTD Modules 1&ndash;5 Cross-Check Linter</div>
+          <div class="stat-line"><span>Reconciled Across Modules (PASS)</span><strong style="color:#0F766E;">{_plural(xc.get('PASS', 0), 'check', 'checks')}</strong></div>
+          <div class="stat-line"><span>Technical Formatting Warnings (WARN)</span><strong style="color:#B45309;">{_plural(xc.get('WARN', 0), 'check', 'checks')}</strong></div>
+          <div class="stat-line"><span>Blocking Numerical / Lot Mismatches (FAIL)</span><strong style="color:#991B1B;">{_plural(xc.get('FAIL', 0), 'check', 'checks')}</strong></div>
+        </div>
+        <div class="stat-card">
+          <div class="sec-title" style="margin-bottom:6px;">3. Global Agency Guidance Drift Radar</div>
+          <div class="stat-line"><span>Compliant Frameworks (MDCG / ICH E6(R3))</span><strong style="color:#0F766E;">{dc.get('COMPLIANT', 0)} active</strong></div>
+          <div class="stat-line"><span>Minor SOP Alignment Needed (MHRA)</span><strong style="color:#B45309;">{dc.get('REVIEW_NEEDED', 0)} active</strong></div>
+          <div class="stat-line"><span>Mid-Stream Blocking Gaps (FDA 524B / PCCP)</span><strong style="color:#991B1B;">{dc.get('GAP_DETECTED', 0)} active</strong></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <span>RA Command Center &middot; Automated QA Aid Only (Qualified RA/PRRC Sign-Off Required; Liability Capped at Fees Paid)</span>
     <span>Samples &amp; Terms: kaledbouchagraoui7-bot.github.io/medtech-regulatory-compliance-suite</span>
   </div>
 </body>

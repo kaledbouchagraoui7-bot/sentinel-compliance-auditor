@@ -137,9 +137,11 @@ def query_doh_txt(name: str, record_type: str = "TXT") -> list[str]:
                 answers = data.get("Answer", []) or []
                 results = []
                 for ans in answers:
+                    if record_type.upper() == "TXT" and ans.get("type") not in (None, 16):
+                        continue
                     raw_data = str(ans.get("data", "")).strip()
-                    # Strip surrounding quotes from TXT chunks
-                    cleaned = raw_data.replace('""', "").strip('"')
+                    # Stitch multi-string TXT chunks ("a" "b" -> ab) & strip surrounding quotes
+                    cleaned = re.sub(r'"\s*"', "", raw_data).strip('"')
                     if cleaned:
                         results.append(cleaned)
                 return results
@@ -1496,11 +1498,12 @@ add_header Permissions-Policy "camera=(), microphone=(), geolocation=(), payment
 """
     (cfg_dir / "nginx_security_headers.conf").write_text(nginx_txt, encoding="utf-8")
 
+    mta_sts_id = dt.datetime.now(dt.timezone.utc).strftime("%Y%m%dT000000")
     dns_txt = f"""# Recommended DNS Anti-Spoofing, Mail Transport & CAA Records for {dom}
 _dmarc.{dom}.     3600 IN TXT "v=DMARC1; p=quarantine; rua=mailto:postmaster@{dom}; adkim=r; aspf=r;"
 {dom}.            3600 IN CAA 0 issue "letsencrypt.org"
 # Optional RFC 8461 MTA-STS & RFC 8460 TLS-RPT hardening (once https://mta-sts.{dom}/.well-known/mta-sts.txt is hosted):
-_mta-sts.{dom}.   3600 IN TXT "v=STSv1; id=20261111T000000;"
+_mta-sts.{dom}.   3600 IN TXT "v=STSv1; id={mta_sts_id};"
 _smtp._tls.{dom}. 3600 IN TXT "v=TLSRPTv1; rua=mailto:tlsrpt@{dom};"
 """
     (cfg_dir / "dns_remediation_records.txt").write_text(dns_txt, encoding="utf-8")

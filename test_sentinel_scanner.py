@@ -12,6 +12,7 @@ import shutil
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 import openpyxl
 from docx import Document
@@ -24,6 +25,7 @@ from sentinel_scanner import (
     generate_visual_scorecard,
     generate_word_audit_report,
     normalize_domain_and_url,
+    query_doh_txt,
     write_remediation_configs,
 )
 
@@ -210,6 +212,22 @@ class TestSentinelComplianceAuditor(unittest.TestCase):
         self.assertIn("Didomi", cmp_res["detected_cmps"])
         self.assertTrue(cmp_res["has_accept_copy_in_html"])
         self.assertTrue(cmp_res["has_reject_copy_in_html"])
+
+    def test_query_doh_txt_filters_type16_and_stitches_split_quotes(self) -> None:
+        mock_resp = mock.MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {
+            "Answer": [
+                {"type": 5, "data": "alias.cname.example."},
+                {"type": 16, "data": '"v=spf1 include:_spf.first.example " "include:_spf.second.example -all"'},
+            ]
+        }
+        with mock.patch("sentinel_scanner.requests.get", return_value=mock_resp):
+            records = query_doh_txt("example.ch")
+        self.assertEqual(
+            records,
+            ["v=spf1 include:_spf.first.example include:_spf.second.example -all"],
+        )
 
 
 if __name__ == "__main__":

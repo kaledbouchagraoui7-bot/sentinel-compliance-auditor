@@ -1,3 +1,6 @@
-# Recommended DNS Anti-Spoofing & CAA Records for alpine-treuhand-demo.ch
-_dmarc.alpine-treuhand-demo.ch.   3600 IN TXT "v=DMARC1; p=quarantine; rua=mailto:postmaster@alpine-treuhand-demo.ch; adkim=r; aspf=r;"
-alpine-treuhand-demo.ch.          3600 IN CAA 0 issue "letsencrypt.org"
+# Recommended DNS Anti-Spoofing, Mail Transport & CAA Records for alpine-treuhand-demo.ch
+_dmarc.alpine-treuhand-demo.ch.     3600 IN TXT "v=DMARC1; p=quarantine; rua=mailto:postmaster@alpine-treuhand-demo.ch; adkim=r; aspf=r;"
+alpine-treuhand-demo.ch.            3600 IN CAA 0 issue "letsencrypt.org"
+# Optional RFC 8461 MTA-STS & RFC 8460 TLS-RPT hardening (once https://mta-sts.alpine-treuhand-demo.ch/.well-known/mta-sts.txt is hosted):
+_mta-sts.alpine-treuhand-demo.ch.   3600 IN TXT "v=STSv1; id=20261111T000000;"
+_smtp._tls.alpine-treuhand-demo.ch. 3600 IN TXT "v=TLSRPTv1; rua=mailto:tlsrpt@alpine-treuhand-demo.ch;"
