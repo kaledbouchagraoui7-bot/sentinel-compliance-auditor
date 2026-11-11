@@ -16,6 +16,7 @@ from pathlib import Path
 import openpyxl
 from docx import Document
 
+from editorial_renderer import build_client_brief_html
 from sentinel_scanner import (
     generate_excel_audit_workbook,
     generate_visual_scorecard,
@@ -149,6 +150,23 @@ class TestSentinelComplianceAuditor(unittest.TestCase):
         ws = wb["Findings_Matrix"]
         self.assertEqual(ws.freeze_panes, "A2")
         self.assertIsNotNone(ws.auto_filter.ref)
+
+        brief_html = build_client_brief_html(self.sample_audit)
+        self.assertIn("kaledbouchagraoui7-bot.github.io/medtech-regulatory-compliance-suite", brief_html)
+        self.assertNotIn("github.com/kaledbouchagraoui7-bot", brief_html)
+        self.assertIn("Remote Google Fonts IP Leak (Schrems II / nFADP)", brief_html)
+        long_title_audit = dict(self.sample_audit)
+        long_title_audit["findings"] = [
+            {
+                **self.sample_audit["findings"][0],
+                "id": "SEC-09",
+                "title": "Vulnerability Disclosure Policy (/.well-known/security.txt)",
+            }
+        ]
+        self.assertIn(
+            "Vulnerability Disclosure Policy (/.well-known/security.txt)",
+            build_client_brief_html(long_title_audit),
+        )
 
 
 if __name__ == "__main__":

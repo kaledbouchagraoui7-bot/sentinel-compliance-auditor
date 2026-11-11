@@ -1170,7 +1170,65 @@ def generate_word_audit_report(audit: dict[str, Any], out_path: Path) -> None:
             if c_i in (0, 3):
                 run.font.bold = True
 
+    append_docx, _, _ = _load_legal_helpers()
+    append_docx(doc, track="sentinel_compliance")
+
     doc.save(str(out_path))
+
+
+def _load_legal_helpers():
+    """Load `legal_terms` from local or sibling suite repo, with standalone fallback."""
+    try:
+        from legal_terms import append_terms_section_docx, append_terms_to_readme_xlsx, render_terms_txt
+        return append_terms_section_docx, append_terms_to_readme_xlsx, render_terms_txt
+    except ImportError:
+        sibling = Path(__file__).resolve().parent.parent / "medtech-regulatory-compliance-suite"
+        if sibling.is_dir() and str(sibling) not in sys.path:
+            sys.path.insert(0, str(sibling))
+            try:
+                from legal_terms import append_terms_section_docx, append_terms_to_readme_xlsx, render_terms_txt
+                return append_terms_section_docx, append_terms_to_readme_xlsx, render_terms_txt
+            except ImportError:
+                pass
+
+    def _fallback_docx(doc: Document, track: str = "sentinel_compliance") -> None:
+        p_h = doc.add_paragraph()
+        p_h.paragraph_format.space_before = Pt(12)
+        rh = p_h.add_run("TERMS OF SERVICE, PASSIVE SCOPE & LIABILITY DISCLAIMER")
+        rh.font.name = "Calibri"
+        rh.font.size = Pt(10.5)
+        rh.font.bold = True
+        p_b = doc.add_paragraph()
+        rb = p_b.add_run(
+            "Strictly passive external observation of public DNS/TLS/HTTP headers (Swiss StGB Art. 143bis compliant). "
+            "Technical QA aid only; not formal legal advice or certified penetration testing. Total provider liability "
+            "is capped at fees actually paid (EUR 0 for complimentary previews). Governed by French law."
+        )
+        rb.font.name = "Calibri"
+        rb.font.size = Pt(8.5)
+
+    def _fallback_xlsx(ws_readme, border, bold_font, body_font, wrap_top, track: str = "sentinel_compliance") -> None:
+        ws_readme.append([
+            "Legal: Scope & Liability Disclaimer",
+            "Passive external observation only. Technical QA aid only (not legal advice). Provider liability capped at fees paid; governed by French law.",
+        ])
+        rn = ws_readme.max_row
+        ws_readme.cell(row=rn, column=1).font = bold_font
+        ws_readme.cell(row=rn, column=1).border = border
+        ws_readme.cell(row=rn, column=1).alignment = wrap_top
+        ws_readme.cell(row=rn, column=2).font = body_font
+        ws_readme.cell(row=rn, column=2).border = border
+        ws_readme.cell(row=rn, column=2).alignment = wrap_top
+
+    def _fallback_txt(track: str = "sentinel_compliance") -> str:
+        return (
+            "SENTINEL COMPLIANCE AUDITOR — TERMS OF SERVICE & LIABILITY DISCLAIMER\n"
+            "Strictly passive external observation of public DNS/TLS/HTTP headers.\n"
+            "Not formal legal advice or certified penetration testing. Provider liability capped at fees paid (EUR 0 for free previews).\n"
+            "Governed by French law (Strasbourg, France).\n"
+        )
+
+    return _fallback_docx, _fallback_xlsx, _fallback_txt
 
 
 def generate_excel_audit_workbook(audit: dict[str, Any], out_path: Path) -> None:
@@ -1257,8 +1315,10 @@ def generate_excel_audit_workbook(audit: dict[str, Any], out_path: Path) -> None
     ws4.append(["Pillar_Summary", "Weighted percentage scores and PASS/WARN/FAIL breakdown across all 5 pillars."])
     ws4.append(["Remediation_Roadmap", "Priority-ordered action list of failing and warning controls for IT/DevOps."])
     ws4.append(["README", "Guide to sheets and methodology notes (100% passive OSINT inspection)."])
-    ws4.column_dimensions["A"].width = 24
-    ws4.column_dimensions["B"].width = 78
+    _, append_xlsx, _ = _load_legal_helpers()
+    append_xlsx(ws4, border, bold_font, body_font, wrap_top, track="sentinel_compliance")
+    ws4.column_dimensions["A"].width = 28
+    ws4.column_dimensions["B"].width = 92
 
     wb.save(str(out_path))
 
@@ -1307,6 +1367,7 @@ def build_domain_audit_package(target: str, base_out: str | Path = "output") -> 
     png_p = pkg_dir / f"{slug}_scorecard.png"
     pdf_p = pkg_dir / f"{slug}_scorecard.pdf"
     json_p = pkg_dir / f"{slug}_raw_evidence.json"
+    terms_p = pkg_dir / "TERMS_OF_SERVICE_AND_DISCLAIMER.txt"
     cfg_dir = pkg_dir / "remediation_configs"
 
     generate_visual_scorecard(audit, png_p, pdf_p)
@@ -1314,10 +1375,12 @@ def build_domain_audit_package(target: str, base_out: str | Path = "output") -> 
     generate_excel_audit_workbook(audit, xlsx_p)
     write_remediation_configs(audit, cfg_dir)
     json_p.write_text(json.dumps(audit, indent=2), encoding="utf-8")
+    _, _, render_txt = _load_legal_helpers()
+    terms_p.write_text(render_txt(track="sentinel_compliance"), encoding="utf-8")
 
     zip_p = Path(base_out) / f"{slug}_audit_package.zip"
     with zipfile.ZipFile(zip_p, "w", compression=zipfile.ZIP_DEFLATED) as zf:
-        for fp in (docx_p, xlsx_p, png_p, pdf_p, json_p):
+        for fp in (docx_p, xlsx_p, png_p, pdf_p, json_p, terms_p):
             zf.write(fp, arcname=f"{slug}_audit/{fp.name}")
         for cf in cfg_dir.iterdir():
             zf.write(cf, arcname=f"{slug}_audit/remediation_configs/{cf.name}")
@@ -1329,6 +1392,7 @@ def build_domain_audit_package(target: str, base_out: str | Path = "output") -> 
         "xlsx": xlsx_p,
         "png": png_p,
         "pdf": pdf_p,
+        "terms": terms_p,
         "zip": zip_p,
     }
 
