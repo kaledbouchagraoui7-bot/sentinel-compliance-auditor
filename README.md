@@ -2,16 +2,15 @@
   <img src="assets/sentinel_logo_full.png" alt="Sentinel — Passive Domain Compliance & Security Auditor" width="760" />
 </div>
 
-# Sentinel — Passive Domain Compliance & Security Auditor
+# Sentinel — Passive Domain Hygiene CLI Utility
 
-**Automated Pre-Audit Engine for Swiss nFADP (LPD/revDSG), EU GDPR, Email Anti-Spoofing (DMARC/SPF), HTTP Edge Hardening, and European Accessibility Act (EAA / WCAG 2.1 AA).**
+**Open-source Python CLI for inspecting public DNS (`DMARC`/`SPF`/`CAA`), TLS metadata, HTTP security headers, and basic HTML accessibility tags.**
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
 [![Zero Intrusive Probes](https://img.shields.io/badge/Audit_Mode-100%25_Passive_OSINT-0D9488.svg)](#architecture--25-control-matrix)
-[![Architecture & Specimens](https://img.shields.io/badge/Docs-Specimens_%26_Legal_(EN%2FFR)-0F172A.svg)](https://kaledbouchagraoui7-bot.github.io/medtech-regulatory-compliance-suite/)
 
-> **100% Free & Open-Source (MIT):** Built for developers, IT admins, and small teams to run fast, strictly passive external DMARC/SPF/TLS/privacy hygiene baselines locally via Python. *(Interactive specimens & EN/FR legal framework: [Sentinel Documentation Portal](https://kaledbouchagraoui7-bot.github.io/medtech-regulatory-compliance-suite/).)*
+> **100% Free & Open-Source CLI Utility (MIT):** Built as a student systems-engineering exercise to consolidate public DNS-over-HTTPS, TLS, and HTTP header checks into local Word/Excel reports. *(See also the flagship research repo: [`computational-biology-portfolio`](https://github.com/kaledbouchagraoui7-bot/computational-biology-portfolio).)*
 
 ---
 
