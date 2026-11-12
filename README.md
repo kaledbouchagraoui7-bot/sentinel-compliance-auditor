@@ -11,7 +11,7 @@
 [![Zero Intrusive Probes](https://img.shields.io/badge/Audit_Mode-100%25_Passive_OSINT-0D9488.svg)](#architecture--25-control-matrix)
 [![Storefront](https://img.shields.io/badge/Service_Catalog-Storefront_%26_Legal_(EN%2FFR)-0F172A.svg)](https://kaledbouchagraoui7-bot.github.io/medtech-regulatory-compliance-suite/)
 
-> **Turnkey Audit Storefront:** Request a complimentary 1-page passive diagnostic snapshot or full 48h audit package at **[kaledbouchagraoui7-bot.github.io/medtech-regulatory-compliance-suite/](https://kaledbouchagraoui7-bot.github.io/medtech-regulatory-compliance-suite/)**.
+> **Turnkey Audit Storefront:** Run the browser DNS/DMARC pre-check, request a complimentary 1-page diagnostic snapshot, or review fixed-scope deliverables at **[Executive Storefront, Live Pre-Check & Bilingual Terms (EN / FR)](https://kaledbouchagraoui7-bot.github.io/medtech-regulatory-compliance-suite/)**.
 
 ---
 

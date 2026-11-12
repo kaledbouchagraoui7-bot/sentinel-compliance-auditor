@@ -11,7 +11,9 @@ clean Matplotlib fallback only if a headless Chromium browser is unavailable.
 from __future__ import annotations
 
 import html
+import json
 import os
+import re
 import shutil
 import subprocess
 import tempfile
@@ -21,6 +23,39 @@ from pathlib import Path
 from typing import Any
 
 _EDGE_RENDER_LOCK = threading.Lock()
+
+
+def _resolve_footer_domain(payload: dict[str, Any] | None = None) -> str:
+    """Resolve optional clean custom domain for scorecard footers (never emits legacy -bot.github.io)."""
+    cand = ""
+    if isinstance(payload, dict):
+        cand = str(payload.get("custom_domain") or "").strip()
+    if not cand:
+        cand = os.environ.get("SENTINEL_CUSTOM_DOMAIN", "").strip()
+    if not cand:
+        for base in (
+            Path(__file__).resolve().parent,
+            Path(__file__).resolve().parent.parent,
+            Path(__file__).resolve().parent.parent / "medtech-regulatory-compliance-suite",
+        ):
+            cfg_p = base / "client_ops_config.json"
+            if cfg_p.is_file():
+                try:
+                    data = json.loads(cfg_p.read_text(encoding="utf-8"))
+                    prov = data.get("provider", {}) if isinstance(data, dict) else {}
+                    raw = str(prov.get("custom_domain") or "").strip()
+                    if not raw:
+                        w = str(prov.get("website_url") or "").strip()
+                        if w and "kaledbouchagraoui7-bot" not in w.lower():
+                            raw = w
+                    if raw:
+                        cand = raw
+                        break
+                except Exception:
+                    continue
+    if not cand or "kaledbouchagraoui7-bot" in cand.lower():
+        return ""
+    return re.sub(r"^https?://", "", cand, flags=re.I).strip().rstrip("/")
 
 _SENTINEL_HEADER_SVG = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="20 25 360 360" width="46" height="46" role="img" aria-label="Sentinel mark">
 <defs>
@@ -166,6 +201,12 @@ def build_client_brief_html(audit: dict[str, Any]) -> str:
     pass_c = int(audit.get("pass_count", 0))
     warn_c = int(audit.get("warn_count", 0))
     fail_c = int(audit.get("fail_count", 0))
+    custom_dom = _resolve_footer_domain(audit)
+    right_footer_html = (
+        f"Portfolio &amp; Terms: {html.escape(custom_dom)}"
+        if custom_dom
+        else "Sentinel Regulatory &amp; Technical Operations &middot; Strasbourg, France &middot; kaledbouchagraoui7@gmail.com"
+    )
 
     if score >= 80:
         posture_label = "Strong Baseline Posture"
@@ -501,7 +542,7 @@ def build_client_brief_html(audit: dict[str, Any]) -> str:
 
   <div class="footer">
     <span>Kaled Bouchagraoui &middot; Passive Public Observation Only &middot; Technical QA Aid (Not Legal Advice; Liability Capped at Fees Paid)</span>
-    <span>Samples &amp; Terms: kaledbouchagraoui7-bot.github.io/medtech-regulatory-compliance-suite</span>
+    <span>{right_footer_html}</span>
   </div>
 </body>
 </html>"""
@@ -524,6 +565,12 @@ def build_ra_command_center_html(report: dict[str, Any]) -> str:
     crl_cost = int(report.get("premature_filing_crl_cost_usd", 0))
     hrs_saved = float(report.get("manual_hours_saved", 0.0))
     blockers = int(report.get("rtf_blockers_count", 0))
+    custom_dom = _resolve_footer_domain(report)
+    ra_right_footer_html = (
+        f"Portfolio &amp; Terms: {html.escape(custom_dom)}"
+        if custom_dom
+        else "Sentinel Regulatory Operations &middot; Strasbourg, France &middot; kaledbouchagraoui7@gmail.com"
+    )
 
     accent = "#991B1B" if blockers > 0 else "#0F766E"
 
@@ -720,7 +767,7 @@ def build_ra_command_center_html(report: dict[str, Any]) -> str:
 
   <div class="footer">
     <span>RA Command Center &middot; Automated QA Aid Only (Qualified RA/PRRC Sign-Off Required; Liability Capped at Fees Paid)</span>
-    <span>Samples &amp; Terms: kaledbouchagraoui7-bot.github.io/medtech-regulatory-compliance-suite</span>
+    <span>{ra_right_footer_html}</span>
   </div>
 </body>
 </html>"""

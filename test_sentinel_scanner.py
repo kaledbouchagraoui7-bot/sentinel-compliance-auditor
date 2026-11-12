@@ -156,8 +156,11 @@ class TestSentinelComplianceAuditor(unittest.TestCase):
         self.assertIsNotNone(ws.auto_filter.ref)
 
         brief_html = build_client_brief_html(self.sample_audit)
-        self.assertIn("kaledbouchagraoui7-bot.github.io/medtech-regulatory-compliance-suite", brief_html)
+        self.assertNotIn("kaledbouchagraoui7-bot", brief_html)
         self.assertNotIn("github.com/kaledbouchagraoui7-bot", brief_html)
+        self.assertIn("Sentinel Regulatory &amp; Technical Operations", brief_html)
+        custom_audit = {**self.sample_audit, "custom_domain": "sentinel-regulatory.eu"}
+        self.assertIn("Portfolio &amp; Terms: sentinel-regulatory.eu", build_client_brief_html(custom_audit))
         self.assertIn("Remote Google Fonts IP Leak (Schrems II / nFADP)", brief_html)
         long_title_audit = dict(self.sample_audit)
         long_title_audit["findings"] = [
