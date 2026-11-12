@@ -17,7 +17,7 @@
 
 ## Executive Overview
 
-**Sentinel** performs a **100% passive, non-intrusive external compliance and security pre-check** on any public corporate domain in under 10 seconds and generates a structured **Technical Baseline Package** (`output/<domain>_audit/` and `<domain>_audit_package.zip`):
+**Sentinel** performs a **100% passive, non-intrusive external compliance and security pre-check** on any public corporate domain — combining bilingual French/German/English privacy, email authentication, and accessibility checks into one **Technical Baseline Package** (`output/<domain>_audit/` and `<domain>_audit_package.zip`) for IT and DPO review (note: single technical checks can also be run manually via public tools like SSL Labs, MXToolbox, or Mozilla Observatory; Sentinel consolidates them into an editable Word/Excel pack prior to human verification):
 
 1. **Executive Compliance & Risk Report (`.docx`)** — Landscape Word document with overall score, letter grade (`A+` to `F`), pillar breakdown, and priority remediation roadmap.
 2. **Filterable Technical Findings Workbook (`.xlsx`)** — 4-sheet Excel workbook (`Findings_Matrix`, `Pillar_Summary`, `Remediation_Roadmap`, `README`) with frozen headers, AutoFilters, and conditional highlighting on failing controls.
