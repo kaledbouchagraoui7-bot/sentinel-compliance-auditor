@@ -9,20 +9,27 @@
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
 [![Zero Intrusive Probes](https://img.shields.io/badge/Audit_Mode-100%25_Passive_OSINT-0D9488.svg)](#architecture--25-control-matrix)
-[![Storefront](https://img.shields.io/badge/Service_Catalog-Storefront_%26_Legal_(EN%2FFR)-0F172A.svg)](https://kaledbouchagraoui7-bot.github.io/medtech-regulatory-compliance-suite/)
+[![Architecture & Specimens](https://img.shields.io/badge/Docs-Specimens_%26_Legal_(EN%2FFR)-0F172A.svg)](https://kaledbouchagraoui7-bot.github.io/medtech-regulatory-compliance-suite/)
 
-> **Turnkey Audit Storefront:** Run the browser DNS/DMARC pre-check, request a complimentary 1-page diagnostic snapshot, or review fixed-scope deliverables at **[Executive Storefront, Live Pre-Check & Bilingual Terms (EN / FR)](https://kaledbouchagraoui7-bot.github.io/medtech-regulatory-compliance-suite/)**.
+> **100% Free & Open-Source (MIT):** Built for developers, IT admins, and small teams to run fast, strictly passive external DMARC/SPF/TLS/privacy hygiene baselines locally via Python. *(Interactive specimens & EN/FR legal framework: [Sentinel Documentation Portal](https://kaledbouchagraoui7-bot.github.io/medtech-regulatory-compliance-suite/).)*
 
 ---
 
 ## Executive Overview
 
-**Sentinel** performs a **100% passive, non-intrusive external compliance and security audit** on any public corporate domain in under 10 seconds and generates an executive-ready **Client Audit Package** (`output/<domain>_audit/` and `<domain>_audit_package.zip`):
+**Sentinel** performs a **100% passive, non-intrusive external compliance and security pre-check** on any public corporate domain in under 10 seconds and generates a structured **Technical Baseline Package** (`output/<domain>_audit/` and `<domain>_audit_package.zip`):
 
 1. **Executive Compliance & Risk Report (`.docx`)** — Landscape Word document with overall score, letter grade (`A+` to `F`), pillar breakdown, and priority remediation roadmap.
 2. **Filterable Technical Findings Workbook (`.xlsx`)** — 4-sheet Excel workbook (`Findings_Matrix`, `Pillar_Summary`, `Remediation_Roadmap`, `README`) with frozen headers, AutoFilters, and conditional highlighting on failing controls.
-3. **300-DPI Executive Scorecard (`.png` & `.pdf`)** — High-resolution visual diagnostic summary ready to attach directly to client briefings or board reports.
-4. **Drop-In Remediation Configurations (`remediation_configs/`)** — Ready-to-deploy `_headers` (Cloudflare/Vercel/Netlify), `nginx_security_headers.conf` (Nginx/Apache), and `dns_remediation_records.txt` (DMARC, SPF, CAA records customized for the audited domain).
+3. **300-DPI Executive Scorecard (`.png` & `.pdf`)** — High-resolution visual diagnostic summary ready for IT & DPO reviews.
+4. **Drop-In Remediation Configurations (`remediation_configs/`)** — Ready-to-review `_headers` (Cloudflare/Vercel/Netlify), `nginx_security_headers.conf` (Nginx/Apache), and `dns_remediation_records.txt` (DMARC, SPF, CAA templates customized for the inspected domain).
+
+## Automation Boundaries: What Code Does vs. Human Judgment
+
+| What `sentinel_scanner.py` Automates (Passive OSINT) | What Requires Qualified Human Judgment (DPO / CISO / Counsel) |
+|---|---|
+| Querying public DoH DNS records (`_dmarc`, `SPF` lookup count, `CAA`, `MX`), TLS certificate metadata, HTTP security headers, and static third-party script tags | Legal adequacy of Data Processing Agreements (DPAs), GDPR/nFADP RoPA records, and legitimate-interest balancing tests |
+| Detecting mechanical hygiene bugs (e.g., >10 RFC 7208 SPF lookups, missing HSTS/CSP, missing `security.txt`) | Assessing whether changing an SPF/DMARC policy or CSP rule will disrupt legacy ERP/CRM senders or internal web apps |
 
 ---
 
