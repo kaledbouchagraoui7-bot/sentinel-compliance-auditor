@@ -95,6 +95,10 @@ output/
 
 ---
 
+## Public Technical Study
+
+- **[Technical Note 01 — Common Passive External Failure Modes (`RFC 7208`, `DMARC`, `nFADP`)](case_studies/01_external_hygiene_failure_modes_study.md)**: Anonymized engineering analysis of >10-lookup SPF PermErrors, DMARC enforcement staging, and pre-consent third-party asset leaks.
+
 ## Legal & Ethical Notice
 
 Sentinel performs **strictly passive checks** equivalent to opening a public webpage in a standard web browser and querying public DNS TXT/MX/CAA records. It never performs port scanning, vulnerability exploitation, brute-forcing, or authenticated probing. See [`LEGAL_COMPLIANCE_AND_ETHICS.md`](LEGAL_COMPLIANCE_AND_ETHICS.md) for the complete Swiss (`StGB Art. 143bis`, `UWG Art. 3(1)(o)`, `nFADP`) and EU (`GDPR`, `EAA`) legal compliance framework.
