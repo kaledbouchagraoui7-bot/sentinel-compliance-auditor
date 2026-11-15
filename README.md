@@ -1,3 +1,5 @@
+> **📦 Archived & Consolidated Notice:** This repository has been **merged into [`sec-asset-hygiene`](https://github.com/kaledbouchagraoui7-bot/sec-asset-hygiene)** under the dedicated `sentinel_auditor/` module (`12` combined `pytest` tests + live GitHub Pages demo). All 25-control nFADP/GDPR/DMARC/TLS auditing code and tests continue there while this repository remains archived so existing links never 404.
+
 <div align="center">
   <img src="assets/sentinel_logo_full.png" alt="Sentinel — Passive Domain Compliance & Security Auditor" width="760" />
 </div>
